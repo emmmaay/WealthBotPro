@@ -162,6 +162,13 @@ class BSCSniperBot2:
             private_key = os.getenv('PRIVATE_KEY')
             if not private_key:
                 logging.error("PRIVATE_KEY not found in environment variables")
+                logging.info("Please set PRIVATE_KEY in your environment variables or .env file")
+                return False
+            
+            # Clean the private key
+            private_key = private_key.strip()
+            if not private_key:
+                logging.error("PRIVATE_KEY is empty")
                 return False
             
             # Initialize blockchain connection

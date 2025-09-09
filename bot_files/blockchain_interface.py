@@ -77,12 +77,27 @@ class BlockchainInterface:
                 logging.error("Web3 not initialized")
                 return False
             
-            # Remove 0x prefix if present
+            # Clean and validate private key
             if private_key.startswith('0x'):
                 private_key = private_key[2:]
             
+            # Ensure private key is valid hex and correct length
+            if len(private_key) != 64:
+                logging.error(f"Private key must be 64 characters (32 bytes), got {len(private_key)}")
+                return False
+            
+            try:
+                # Validate hexadecimal format
+                int(private_key, 16)
+            except ValueError:
+                logging.error("Private key contains invalid hexadecimal characters")
+                return False
+            
+            # Add 0x prefix back for Account.from_key
+            formatted_key = '0x' + private_key
+            
             # Create account
-            self.account = Account.from_key(private_key)
+            self.account = Account.from_key(formatted_key)
             self.wallet_address = self.account.address
             
             logging.info(f"{Fore.GREEN}🔑 Wallet loaded: {self.wallet_address}{Style.RESET_ALL}")
@@ -120,6 +135,17 @@ class BlockchainInterface:
     async def get_token_info(self, token_address: str) -> Dict[str, Any]:
         """Get comprehensive token information"""
         try:
+            # Ensure address is properly formatted
+            if not token_address.startswith('0x'):
+                token_address = '0x' + token_address
+            
+            # Validate hex format
+            try:
+                int(token_address[2:], 16)
+            except ValueError:
+                logging.error(f"Invalid token address format: {token_address}")
+                return self._get_default_token_info(token_address)
+            
             token_contract = self.w3.eth.contract(
                 address=Web3.to_checksum_address(token_address),
                 abi=self.erc20_abi
@@ -157,18 +183,33 @@ class BlockchainInterface:
             
         except Exception as e:
             logging.error(f"Error getting token info for {token_address}: {e}")
-            return {
-                'address': token_address,
-                'name': 'Unknown',
-                'symbol': 'UNKNOWN',
-                'decimals': 18,
-                'total_supply': 0,
-                'total_supply_formatted': 0
-            }
+            return self._get_default_token_info(token_address)
+
+    def _get_default_token_info(self, token_address: str) -> Dict[str, Any]:
+        """Return default token info structure"""
+        return {
+            'address': token_address,
+            'name': 'Unknown',
+            'symbol': 'UNKNOWN',
+            'decimals': 18,
+            'total_supply': 0,
+            'total_supply_formatted': 0
+        }
 
     async def get_pair_info(self, pair_address: str) -> Dict[str, Any]:
         """Get detailed pair information"""
         try:
+            # Ensure address is properly formatted
+            if not pair_address.startswith('0x'):
+                pair_address = '0x' + pair_address
+            
+            # Validate hex format
+            try:
+                int(pair_address[2:], 16)
+            except ValueError:
+                logging.error(f"Invalid pair address format: {pair_address}")
+                return {}
+            
             pair_contract = self.w3.eth.contract(
                 address=Web3.to_checksum_address(pair_address),
                 abi=self.pair_abi
