@@ -2,21 +2,24 @@
   "api_keys": {
     "goplus_app_key": "R3QUChegrrAMyXdA7MP7",
     "goplus_app_secret": "V8nZBkJgTbFYYz5gXKMkM2ASeNws4RyT",
+    "goplus_fallback_key": "backup_key_here",
     "bscscan_api_key": "49KJV11NHIES9X4WSH95IIN1YUJJUZ5795",
-    "bscscan_fallback_api_key": "",
-    "telegram_bot_token": "",
-    "telegram_channel_id": ""
+    "bscscan_fallback_api_key": "backup_bscscan_key",
+    "multichain_api_key": "your_multichain_api_key_here",
+    "honeypot_api_key": "backup_honeypot_key",
+    "telegram_bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+    "telegram_channel_id": "YOUR_TELEGRAM_CHANNEL_ID"
   },
   "trading": {
     "buy_amount_bnb": 0.001,
     "gas_reserve_bnb": 0.001,
     "max_concurrent_positions": 5,
     "max_token_age_minutes": 3,
-    "min_liquidity_usd": 2000,
+    "min_liquidity_usd": 500,
     "slippage_tolerance": 15,
     "max_buy_tax": 10,
     "max_sell_tax": 10,
-    "min_holders": 10,
+    "min_holders": 3,
     "auto_compound": true,
     "compound_threshold_bnb": 0.01,
     "gas_optimization": {
@@ -95,8 +98,10 @@
       "check_team_tokens": true,
       "check_presale_dumps": true,
       "check_bot_activity": true,
-      "min_natural_holders": 20,
-      "max_holder_concentration": 15
+      "min_natural_holders": 3,
+      "max_holder_concentration": 50,
+      "focus_on_concentration": true,
+      "allow_new_tokens": true
     }
   }
 }

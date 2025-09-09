@@ -236,9 +236,18 @@ class AdvancedSecurityEngine:
                         if token_data.get('is_whitelisted', '0') == '0' and token_data.get('is_open_source', '0') == '0':
                             failed_reasons.append("Contract not open source")
                         
-                        # Check buy/sell taxes
-                        buy_tax = float(token_data.get('buy_tax', '0'))
-                        sell_tax = float(token_data.get('sell_tax', '0'))
+                        # Enhanced tax checking with error handling
+                        try:
+                            buy_tax_str = str(token_data.get('buy_tax', '0')).strip()
+                            sell_tax_str = str(token_data.get('sell_tax', '0')).strip()
+                            
+                            buy_tax = float(buy_tax_str) if buy_tax_str else 0.0
+                            sell_tax = float(sell_tax_str) if sell_tax_str else 0.0
+                        except (ValueError, TypeError):
+                            # If we can't parse taxes, assume reasonable defaults
+                            buy_tax = 5.0
+                            sell_tax = 5.0
+                            logging.warning(f"Could not parse tax data for {token_address}, using defaults")
                         
                         max_buy_tax = self.config['trading'].get('max_buy_tax', 10)
                         max_sell_tax = self.config['trading'].get('max_sell_tax', 10)
@@ -256,10 +265,22 @@ class AdvancedSecurityEngine:
                         if token_data.get('can_take_back_ownership', '0') == '1':
                             failed_reasons.append("Ownership can be reclaimed")
                         
-                        # Check holder count
+                        # Smart holder analysis - focus on concentration, not just count
                         holder_count = int(token_data.get('holder_count', '0'))
-                        if holder_count < self.config['trading']['min_holders']:
-                            failed_reasons.append(f"Too few holders: {holder_count}")
+                        min_holders = self.config['trading']['min_holders']
+                        
+                        # Only check holder count if token isn't brand new
+                        if holder_count > 0 and holder_count < min_holders:
+                            # For new tokens, check concentration instead of absolute count
+                            top_holders = token_data.get('top10_holders', [])
+                            if top_holders:
+                                max_concentration = max([float(h.get('percent', '0')) for h in top_holders if h.get('percent')])
+                                if max_concentration > 50:  # If any holder has >50%
+                                    failed_reasons.append(f"High holder concentration: {max_concentration}%")
+                            else:
+                                # Only reject if very few holders AND no concentration data
+                                if holder_count < 3:
+                                    failed_reasons.append(f"Too few holders: {holder_count}")
                         
                         return len(failed_reasons) == 0, failed_reasons, token_data
                     else:
@@ -270,7 +291,41 @@ class AdvancedSecurityEngine:
                     
         except Exception as e:
             logging.error(f"GoPlus security check error: {e}")
-            raise e
+            # Try fallback API if available
+            return await self._goplus_fallback_check(token_address)
+    
+    async def _goplus_fallback_check(self, token_address: str) -> Tuple[bool, List[str], Dict[str, Any]]:
+        """Fallback GoPlus check with different API key or endpoint"""
+        try:
+            fallback_key = self.api_keys.get('goplus_fallback_key')
+            if not fallback_key:
+                return False, ["Primary API failed, no fallback configured"], {}
+            
+            # Try with fallback key
+            url = f"https://api.gopluslabs.io/api/v1/token_security/56"
+            params = {'contract_addresses': token_address}
+            headers = {'X-API-KEY': fallback_key}
+            
+            async with self.session.get(url, params=params, headers=headers, timeout=15) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if 'result' in data and token_address.lower() in data['result']:
+                        # Basic safety check with minimal requirements for new tokens
+                        token_data = data['result'][token_address.lower()]
+                        failed_reasons = []
+                        
+                        if token_data.get('is_honeypot', '0') == '1':
+                            failed_reasons.append("Detected as honeypot (fallback)")
+                        if token_data.get('is_blacklisted', '0') == '1':
+                            failed_reasons.append("Token is blacklisted (fallback)")
+                        
+                        return len(failed_reasons) == 0, failed_reasons, token_data
+            
+            return False, ["All API attempts failed"], {}
+            
+        except Exception as e:
+            logging.error(f"Fallback API also failed: {e}")
+            return False, ["All security APIs unavailable"], {}
 
     async def _check_honeypot_simulation(self, token_address: str, pair_address: str) -> Tuple[bool, str]:
         """Simulate buy/sell to detect honeypots"""
