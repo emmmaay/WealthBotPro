@@ -36,7 +36,15 @@ class BSCSniperBot2:
         self.config = self.load_config(config_path)
         
         # Initialize components
-        self.blockchain = BlockchainInterface(self.config)
+        try:
+            self.blockchain = BlockchainInterface(self.config)
+            logging.info("✅ Blockchain interface initialized successfully")
+        except ValueError as e:
+            logging.error(f"❌ Failed to initialize blockchain interface: {e}")
+            if "private key" in str(e).lower():
+                logging.error("💡 Please check your PRIVATE_KEY in the .env file")
+                logging.error("💡 Private key should be 64 hexadecimal characters (with or without 0x prefix)")
+            sys.exit(1)
         self.notifier = TelegramNotifier(
             self.config['api_keys'].get('telegram_bot_token', ''),
             self.config['api_keys'].get('telegram_channel_id', '')

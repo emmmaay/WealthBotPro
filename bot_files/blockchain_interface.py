@@ -14,6 +14,7 @@ from web3.exceptions import TransactionNotFound, TimeExhausted
 from eth_account import Account
 from colorama import Fore, Style
 import json
+import os # Added import for os.getenv
 
 class BlockchainInterface:
     def __init__(self, config: Dict[str, Any]):
@@ -25,16 +26,16 @@ class BlockchainInterface:
         self.router_address = config['blockchain']['pancakeswap_router']
         self.wbnb_address = config['blockchain']['wbnb_address']
         self.busd_address = config['blockchain']['busd_address']
-        
+
         # Contract ABIs
         self.factory_abi = self._get_factory_abi()
         self.router_abi = self._get_router_abi()
         self.erc20_abi = self._get_erc20_abi()
         self.pair_abi = self._get_pair_abi()
-        
+
         # Initialize connection
         self.initialize_web3_connection()
-        
+
         # Account management
         self.account = None
         self.wallet_address = None
@@ -45,10 +46,10 @@ class BlockchainInterface:
             for i, rpc_url in enumerate(self.rpc_endpoints):
                 try:
                     logging.info(f"Attempting to connect to RPC {i+1}: {rpc_url}")
-                    
+
                     w3 = Web3(Web3.HTTPProvider(rpc_url, request_kwargs={'timeout': 30}))
                     w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-                    
+
                     # Test connection
                     if w3.is_connected():
                         # Verify we can get latest block
@@ -58,15 +59,15 @@ class BlockchainInterface:
                             self.current_rpc_index = i
                             logging.info(f"{Fore.GREEN}✅ Connected to BSC via RPC {i+1} (Block: {latest_block}){Style.RESET_ALL}")
                             return True
-                    
+
                 except Exception as e:
                     logging.warning(f"RPC {i+1} failed: {e}")
                     continue
-            
+
             if attempt < 2:
                 logging.warning(f"All RPCs failed, retrying in {attempt + 1} seconds...")
                 time.sleep(attempt + 1)
-        
+
         logging.error("Failed to connect to any RPC endpoint after 3 attempts")
         return False
 
@@ -76,33 +77,32 @@ class BlockchainInterface:
             if not self.w3:
                 logging.error("Web3 not initialized")
                 return False
-            
+
             # Clean and validate private key
-            if private_key.startswith('0x'):
-                private_key = private_key[2:]
-            
-            # Ensure private key is valid hex and correct length
-            if len(private_key) != 64:
-                logging.error(f"Private key must be 64 characters (32 bytes), got {len(private_key)}")
+            clean_key = private_key.strip()
+            if clean_key.startswith('0x'):
+                clean_key = clean_key[2:]
+
+            if len(clean_key) != 64:
+                logging.error(f"Private key must be 64 hexadecimal characters, got {len(clean_key)}")
                 return False
-            
+
             try:
                 # Validate hexadecimal format
-                int(private_key, 16)
+                int(clean_key, 16)
+                # Add 0x prefix back for Account.from_key
+                formatted_key = '0x' + clean_key
+                # Create account
+                self.account = Account.from_key(formatted_key)
+                self.wallet_address = self.account.address
+
+                logging.info(f"{Fore.GREEN}🔑 Wallet loaded: {self.wallet_address}{Style.RESET_ALL}")
+                return True
+
             except ValueError:
                 logging.error("Private key contains invalid hexadecimal characters")
                 return False
-            
-            # Add 0x prefix back for Account.from_key
-            formatted_key = '0x' + private_key
-            
-            # Create account
-            self.account = Account.from_key(formatted_key)
-            self.wallet_address = self.account.address
-            
-            logging.info(f"{Fore.GREEN}🔑 Wallet loaded: {self.wallet_address}{Style.RESET_ALL}")
-            return True
-            
+
         except Exception as e:
             logging.error(f"Failed to setup account: {e}")
             return False
@@ -112,7 +112,7 @@ class BlockchainInterface:
         try:
             if not self.wallet_address:
                 return 0.0
-            
+
             if token_address is None or token_address.lower() == self.wbnb_address.lower():
                 # Get BNB balance
                 balance_wei = self.w3.eth.get_balance(self.wallet_address)
@@ -123,11 +123,11 @@ class BlockchainInterface:
                     address=Web3.to_checksum_address(token_address),
                     abi=self.erc20_abi
                 )
-                
+
                 balance = token_contract.functions.balanceOf(self.wallet_address).call()
                 decimals = token_contract.functions.decimals().call()
                 return balance / (10**decimals)
-                
+
         except Exception as e:
             logging.error(f"Error getting wallet balance: {e}")
             return 0.0
@@ -138,40 +138,40 @@ class BlockchainInterface:
             # Ensure address is properly formatted
             if not token_address.startswith('0x'):
                 token_address = '0x' + token_address
-            
+
             # Validate hex format
             try:
                 int(token_address[2:], 16)
             except ValueError:
                 logging.error(f"Invalid token address format: {token_address}")
                 return self._get_default_token_info(token_address)
-            
+
             token_contract = self.w3.eth.contract(
                 address=Web3.to_checksum_address(token_address),
                 abi=self.erc20_abi
             )
-            
+
             # Get basic token info
             try:
                 name = token_contract.functions.name().call()
             except:
                 name = "Unknown"
-            
+
             try:
                 symbol = token_contract.functions.symbol().call()
             except:
                 symbol = "UNKNOWN"
-            
+
             try:
                 decimals = token_contract.functions.decimals().call()
             except:
                 decimals = 18
-            
+
             try:
                 total_supply = token_contract.functions.totalSupply().call()
             except:
                 total_supply = 0
-            
+
             return {
                 'address': token_address,
                 'name': name,
@@ -180,7 +180,7 @@ class BlockchainInterface:
                 'total_supply': total_supply,
                 'total_supply_formatted': total_supply / (10**decimals) if total_supply > 0 else 0
             }
-            
+
         except Exception as e:
             logging.error(f"Error getting token info for {token_address}: {e}")
             return self._get_default_token_info(token_address)
@@ -202,28 +202,28 @@ class BlockchainInterface:
             # Ensure address is properly formatted
             if not pair_address.startswith('0x'):
                 pair_address = '0x' + pair_address
-            
+
             # Validate hex format
             try:
                 int(pair_address[2:], 16)
             except ValueError:
                 logging.error(f"Invalid pair address format: {pair_address}")
                 return {}
-            
+
             pair_contract = self.w3.eth.contract(
                 address=Web3.to_checksum_address(pair_address),
                 abi=self.pair_abi
             )
-            
+
             # Get pair data
             token0 = pair_contract.functions.token0().call()
             token1 = pair_contract.functions.token1().call()
             reserves = pair_contract.functions.getReserves().call()
-            
+
             # Get token info for both tokens
             token0_info = await self.get_token_info(token0)
             token1_info = await self.get_token_info(token1)
-            
+
             return {
                 'pair_address': pair_address,
                 'token0': {
@@ -241,7 +241,7 @@ class BlockchainInterface:
                 'last_update': reserves[2],
                 'creation_time': int(time.time())  # This would need to be fetched from creation event
             }
-            
+
         except Exception as e:
             logging.error(f"Error getting pair info for {pair_address}: {e}")
             return {}
@@ -250,15 +250,15 @@ class BlockchainInterface:
         """Calculate token price in BNB"""
         try:
             pair_info = await self.get_pair_info(pair_address)
-            
+
             if not pair_info:
                 return 0.0
-            
+
             # Determine which token is WBNB
             wbnb_checksum = Web3.to_checksum_address(self.wbnb_address)
             token0_address = Web3.to_checksum_address(pair_info['token0']['address'])
             token1_address = Web3.to_checksum_address(pair_info['token1']['address'])
-            
+
             if token0_address == wbnb_checksum:
                 # Token1 is our target token, Token0 is WBNB
                 bnb_reserve = pair_info['token0']['reserve_formatted']
@@ -270,14 +270,14 @@ class BlockchainInterface:
             else:
                 logging.warning("Neither token in pair is WBNB")
                 return 0.0
-            
+
             if token_reserve == 0:
                 return 0.0
-            
+
             # Price = BNB Reserve / Token Reserve
             price_bnb = bnb_reserve / token_reserve
             return price_bnb
-            
+
         except Exception as e:
             logging.error(f"Error calculating token price: {e}")
             return 0.0
@@ -287,18 +287,18 @@ class BlockchainInterface:
         try:
             # Get current gas price
             current_gas_price = self.w3.eth.gas_price
-            
+
             # Apply multiplier for faster execution
             multiplier = self.config['security'].get('gas_multiplier', 1.2)
             optimal_gas_price = int(current_gas_price * multiplier)
-            
+
             # Cap at maximum
             max_gas_price = int(self.config['security'].get('max_gas_price_gwei', 20) * 10**9)
             final_gas_price = min(optimal_gas_price, max_gas_price)
-            
+
             logging.info(f"Gas price: {final_gas_price / 10**9:.2f} gwei")
             return final_gas_price
-            
+
         except Exception as e:
             logging.error(f"Error estimating gas price: {e}")
             return int(5 * 10**9)  # 5 gwei fallback
@@ -308,33 +308,33 @@ class BlockchainInterface:
         try:
             if not self.account or not self.wallet_address:
                 return False, "Account not setup", {}
-            
+
             token_address = Web3.to_checksum_address(token_address)
             router_address = Web3.to_checksum_address(self.router_address)
-            
+
             # Get router contract
             router_contract = self.w3.eth.contract(address=router_address, abi=self.router_abi)
-            
+
             # Calculate amounts
             bnb_amount_wei = int(bnb_amount * 10**18)
             path = [self.wbnb_address, token_address]
-            
+
             # Get expected output amount
             amounts_out = router_contract.functions.getAmountsOut(bnb_amount_wei, path).call()
             expected_tokens = amounts_out[1]
-            
+
             # Calculate minimum tokens with slippage
             min_tokens_out = int(expected_tokens * (100 - slippage) / 100)
-            
+
             # Get current gas price
             gas_price = await self.estimate_gas_price()
-            
+
             # Get nonce
             nonce = self.w3.eth.get_transaction_count(self.wallet_address)
-            
+
             # Build transaction
             deadline = int(time.time()) + 300  # 5 minutes
-            
+
             transaction = router_contract.functions.swapExactETHForTokens(
                 min_tokens_out,
                 path,
@@ -347,25 +347,25 @@ class BlockchainInterface:
                 'gas': 350000,  # Conservative gas limit
                 'nonce': nonce
             })
-            
+
             # Sign transaction
             signed_txn = self.w3.eth.account.sign_transaction(transaction, self.account.key)
-            
+
             # Send transaction
             tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
             tx_hash_hex = tx_hash.hex()
-            
+
             logging.info(f"{Fore.GREEN}📡 Buy transaction sent: {tx_hash_hex}{Style.RESET_ALL}")
-            
+
             # Wait for confirmation with timeout
             try:
                 receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-                
+
                 if receipt.status == 1:
                     # Success
                     gas_used = receipt.gasUsed
                     gas_cost_bnb = (gas_used * gas_price) / 10**18
-                    
+
                     result_data = {
                         'transaction_hash': tx_hash_hex,
                         'gas_used': gas_used,
@@ -375,18 +375,18 @@ class BlockchainInterface:
                         'min_tokens_out': min_tokens_out,
                         'block_number': receipt.blockNumber
                     }
-                    
+
                     logging.info(f"{Fore.GREEN}✅ Buy transaction confirmed! Gas: {gas_cost_bnb:.6f} BNB{Style.RESET_ALL}")
                     return True, "Transaction successful", result_data
                 else:
                     # Failed
                     logging.error(f"{Fore.RED}❌ Buy transaction failed{Style.RESET_ALL}")
                     return False, "Transaction failed", {'transaction_hash': tx_hash_hex}
-                    
+
             except TimeExhausted:
                 logging.error(f"{Fore.RED}⏰ Buy transaction timeout: {tx_hash_hex}{Style.RESET_ALL}")
                 return False, "Transaction timeout", {'transaction_hash': tx_hash_hex}
-                
+
         except Exception as e:
             logging.error(f"Buy transaction error: {e}")
             return False, f"Transaction error: {str(e)}", {}
@@ -396,18 +396,18 @@ class BlockchainInterface:
         try:
             if not self.account or not self.wallet_address:
                 return False, "Account not setup", {}
-            
+
             token_address = Web3.to_checksum_address(token_address)
             router_address = Web3.to_checksum_address(self.router_address)
-            
+
             # Get token info for decimals
             token_info = await self.get_token_info(token_address)
             token_amount_wei = int(token_amount * 10**token_info['decimals'])
-            
+
             # Get contracts
             router_contract = self.w3.eth.contract(address=router_address, abi=self.router_abi)
             token_contract = self.w3.eth.contract(address=token_address, abi=self.erc20_abi)
-            
+
             # Check and approve if needed
             allowance = token_contract.functions.allowance(self.wallet_address, router_address).call()
             if allowance < token_amount_wei:
@@ -415,22 +415,22 @@ class BlockchainInterface:
                 approve_success = await self._approve_token(token_address, router_address, token_amount_wei * 2)
                 if not approve_success:
                     return False, "Failed to approve token", {}
-            
+
             # Calculate amounts
             path = [token_address, self.wbnb_address]
             amounts_out = router_contract.functions.getAmountsOut(token_amount_wei, path).call()
             expected_bnb = amounts_out[1]
-            
+
             # Calculate minimum BNB with slippage
             min_bnb_out = int(expected_bnb * (100 - slippage) / 100)
-            
+
             # Get current gas price and nonce
             gas_price = await self.estimate_gas_price()
             nonce = self.w3.eth.get_transaction_count(self.wallet_address)
-            
+
             # Build transaction
             deadline = int(time.time()) + 300
-            
+
             transaction = router_contract.functions.swapExactTokensForETH(
                 token_amount_wei,
                 min_bnb_out,
@@ -443,22 +443,22 @@ class BlockchainInterface:
                 'gas': 350000,
                 'nonce': nonce
             })
-            
+
             # Sign and send transaction
             signed_txn = self.w3.eth.account.sign_transaction(transaction, self.account.key)
             tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
             tx_hash_hex = tx_hash.hex()
-            
+
             logging.info(f"{Fore.YELLOW}📤 Sell transaction sent: {tx_hash_hex}{Style.RESET_ALL}")
-            
+
             # Wait for confirmation
             try:
                 receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-                
+
                 if receipt.status == 1:
                     gas_used = receipt.gasUsed
                     gas_cost_bnb = (gas_used * gas_price) / 10**18
-                    
+
                     result_data = {
                         'transaction_hash': tx_hash_hex,
                         'gas_used': gas_used,
@@ -468,17 +468,17 @@ class BlockchainInterface:
                         'min_bnb_out': min_bnb_out / 10**18,
                         'block_number': receipt.blockNumber
                     }
-                    
+
                     logging.info(f"{Fore.GREEN}✅ Sell transaction confirmed! Gas: {gas_cost_bnb:.6f} BNB{Style.RESET_ALL}")
                     return True, "Sell successful", result_data
                 else:
                     logging.error(f"{Fore.RED}❌ Sell transaction failed{Style.RESET_ALL}")
                     return False, "Sell transaction failed", {'transaction_hash': tx_hash_hex}
-                    
+
             except TimeExhausted:
                 logging.error(f"{Fore.RED}⏰ Sell transaction timeout: {tx_hash_hex}{Style.RESET_ALL}")
                 return False, "Sell transaction timeout", {'transaction_hash': tx_hash_hex}
-                
+
         except Exception as e:
             logging.error(f"Sell transaction error: {e}")
             return False, f"Sell error: {str(e)}", {}
@@ -490,10 +490,10 @@ class BlockchainInterface:
                 address=Web3.to_checksum_address(token_address),
                 abi=self.erc20_abi
             )
-            
+
             gas_price = await self.estimate_gas_price()
             nonce = self.w3.eth.get_transaction_count(self.wallet_address)
-            
+
             transaction = token_contract.functions.approve(
                 Web3.to_checksum_address(spender_address),
                 amount
@@ -503,13 +503,13 @@ class BlockchainInterface:
                 'gas': 100000,
                 'nonce': nonce
             })
-            
+
             signed_txn = self.w3.eth.account.sign_transaction(transaction, self.account.key)
             tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-            
+
             receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=60)
             return receipt.status == 1
-            
+
         except Exception as e:
             logging.error(f"Approval error: {e}")
             return False
