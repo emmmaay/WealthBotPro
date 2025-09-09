@@ -6,7 +6,7 @@ Sends detailed updates about bot activities and trading results
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from telegram import Bot
 from telegram.error import TelegramError
 from colorama import Fore, Style

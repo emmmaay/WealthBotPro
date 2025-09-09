@@ -8,7 +8,7 @@ import asyncio
 import logging
 import time
 from typing import Dict, Any, List, Optional, Tuple
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from colorama import Fore, Style
 import json
 
@@ -33,12 +33,10 @@ class Position:
     peak_value_bnb: float = 0.0
     
     # Selling history
-    sold_amounts: List[Dict[str, Any]] = None
+    sold_amounts: List[Dict[str, Any]] = field(default_factory=list)
     remaining_tokens: float = 0.0
     
     def __post_init__(self):
-        if self.sold_amounts is None:
-            self.sold_amounts = []
         if self.remaining_tokens == 0.0:
             self.remaining_tokens = self.tokens_owned
         if self.peak_price_bnb == 0.0:
