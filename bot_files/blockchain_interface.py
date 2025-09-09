@@ -128,15 +128,26 @@ class BlockchainInterface:
                     logging.error("Account creation failed - invalid result")
                     return False
                 
-                # Test signing capability
-                test_message = "test"
+                # Test signing capability and gas estimation
+                test_message = "BSC_SNIPER_BOT_TEST"
                 try:
-                    self.account.sign_message(test_message.encode())
+                    # Test message signing
+                    signed_message = self.account.sign_message(test_message.encode())
+                    if not signed_message:
+                        raise Exception("Signing returned None")
+                    
+                    # Test gas estimation for trading
+                    latest_block = self.w3.eth.get_block('latest')
+                    gas_price = self.w3.eth.gas_price
+                    
                     logging.info(f"{Fore.GREEN}🔑 Wallet loaded successfully: {self.wallet_address}{Style.RESET_ALL}")
                     logging.info(f"{Fore.GREEN}✅ Signing capability verified{Style.RESET_ALL}")
+                    logging.info(f"{Fore.GREEN}⛽ Gas price: {gas_price / 10**9:.2f} gwei{Style.RESET_ALL}")
+                    logging.info(f"{Fore.GREEN}🔗 Latest block: {latest_block['number']}{Style.RESET_ALL}")
                     return True
+                    
                 except Exception as sign_error:
-                    logging.error(f"Account signing test failed: {sign_error}")
+                    logging.error(f"Account verification failed: {sign_error}")
                     return False
                     
             except Exception as account_error:

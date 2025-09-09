@@ -18,7 +18,19 @@
     "max_sell_tax": 10,
     "min_holders": 10,
     "auto_compound": true,
-    "compound_threshold_bnb": 0.01
+    "compound_threshold_bnb": 0.01,
+    "gas_optimization": {
+      "max_gas_price_gwei": 20,
+      "gas_price_multiplier": 1.2,
+      "priority_fee_gwei": 2,
+      "fast_execution_mode": true
+    },
+    "advanced_profit": {
+      "compound_percentage": 80,
+      "reinvest_threshold_multiplier": 3.0,
+      "max_position_size_bnb": 0.1,
+      "scaling_factor": 1.5
+    }
   },
   "profit_management": {
     "take_profit_1": {
@@ -43,10 +55,19 @@
     "blacklisted_functions": [
       "mint",
       "blacklist",
-      "addToBlackList"
+      "addToBlackList",
+      "setFee",
+      "enableTrading",
+      "pause"
     ],
     "min_contract_age_minutes": 0,
-    "honeypot_simulation_amount": 0.0001
+    "honeypot_simulation_amount": 0.0001,
+    "enhanced_checks": {
+      "check_proxy_patterns": true,
+      "check_fee_manipulation": true,
+      "check_liquidity_burns": true,
+      "max_transaction_cooldown": 300
+    }
   },
   "blockchain": {
     "rpc_endpoints": [
@@ -68,6 +89,14 @@
     "check_liquidity_locks": true,
     "check_social_signals": false,
     "max_dev_wallet_percentage": 5,
-    "max_whale_wallet_percentage": 3
+    "max_whale_wallet_percentage": 3,
+    "additional_security": {
+      "check_contract_similarity": true,
+      "check_team_tokens": true,
+      "check_presale_dumps": true,
+      "check_bot_activity": true,
+      "min_natural_holders": 20,
+      "max_holder_concentration": 15
+    }
   }
 }

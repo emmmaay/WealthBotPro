@@ -162,40 +162,119 @@ class BSCSniperBot2:
         print(banner)
 
     async def initialize_components(self) -> bool:
-        """Initialize all bot components"""
-        try:
-            logging.info("Initializing bot components...")
-            
-            # Setup wallet from environment variable
-            private_key = os.getenv('PRIVATE_KEY')
-            if not private_key:
-                logging.error("PRIVATE_KEY not found in environment variables")
-                logging.info("Please set PRIVATE_KEY in your environment variables or .env file")
-                return False
-            
-            # Clean the private key
-            private_key = private_key.strip()
-            if not private_key:
-                logging.error("PRIVATE_KEY is empty")
-                return False
-            
-            # Initialize blockchain connection
-            if not self.blockchain.setup_account(private_key):
-                logging.error("Failed to setup wallet account")
-                return False
-            
-            # Initialize security engine
-            self.security_engine = AdvancedSecurityEngine(self.config, self.blockchain.w3)
-            
-            # Initialize profit manager
-            self.profit_manager = ProfitManager(self.config, self.blockchain, self.notifier)
-            
-            logging.info(f"{Fore.GREEN}✅ All components initialized successfully{Style.RESET_ALL}")
-            return True
-            
-        except Exception as e:
-            logging.error(f"Error initializing components: {e}")
-            return False
+        """Initialize all bot components with triple-redundancy error handling"""
+        initialization_attempts = 3
+        
+        for attempt in range(initialization_attempts):
+            try:
+                logging.info(f"Initializing bot components... (Attempt {attempt + 1}/{initialization_attempts})")
+                
+                # Setup wallet from environment variable with enhanced validation
+                private_key = os.getenv('PRIVATE_KEY')
+                if not private_key:
+                    logging.error("PRIVATE_KEY not found in environment variables")
+                    logging.info("Please set PRIVATE_KEY in your environment variables or .env file")
+                    return False
+                
+                # Enhanced private key validation
+                private_key = private_key.strip()
+                if not private_key:
+                    logging.error("PRIVATE_KEY is empty after stripping")
+                    return False
+                
+                # Validate key format before blockchain setup
+                try:
+                    clean_key = private_key[2:] if private_key.startswith('0x') else private_key
+                    if len(clean_key) != 64:
+                        logging.error(f"Invalid private key length: {len(clean_key)} (expected 64)")
+                        return False
+                    int(clean_key, 16)  # Validate hex format
+                    logging.info("✅ Private key format validation passed")
+                except ValueError as e:
+                    logging.error(f"Private key format validation failed: {e}")
+                    return False
+                
+                # Initialize blockchain connection with retry logic
+                blockchain_setup_success = False
+                for blockchain_attempt in range(3):
+                    try:
+                        if self.blockchain.setup_account(private_key):
+                            blockchain_setup_success = True
+                            break
+                        else:
+                            logging.warning(f"Blockchain setup attempt {blockchain_attempt + 1} failed")
+                            if blockchain_attempt < 2:
+                                await asyncio.sleep(1)
+                    except Exception as blockchain_error:
+                        logging.error(f"Blockchain setup error (attempt {blockchain_attempt + 1}): {blockchain_error}")
+                        if blockchain_attempt < 2:
+                            await asyncio.sleep(1)
+                
+                if not blockchain_setup_success:
+                    logging.error("Failed to setup wallet account after 3 attempts")
+                    if attempt < initialization_attempts - 1:
+                        logging.info(f"Retrying full initialization in {attempt + 1} seconds...")
+                        await asyncio.sleep(attempt + 1)
+                        continue
+                    return False
+                
+                # Initialize security engine with error handling
+                try:
+                    self.security_engine = AdvancedSecurityEngine(self.config, self.blockchain.w3)
+                    logging.info("✅ Security engine initialized")
+                except Exception as security_error:
+                    logging.error(f"Security engine initialization failed: {security_error}")
+                    if attempt < initialization_attempts - 1:
+                        await asyncio.sleep(attempt + 1)
+                        continue
+                    return False
+                
+                # Initialize profit manager with error handling
+                try:
+                    self.profit_manager = ProfitManager(self.config, self.blockchain, self.notifier)
+                    logging.info("✅ Profit manager initialized")
+                except Exception as profit_error:
+                    logging.error(f"Profit manager initialization failed: {profit_error}")
+                    if attempt < initialization_attempts - 1:
+                        await asyncio.sleep(attempt + 1)
+                        continue
+                    return False
+                
+                # Verify all components are properly initialized
+                if not all([self.blockchain, self.security_engine, self.profit_manager]):
+                    logging.error("Component verification failed - some components are None")
+                    if attempt < initialization_attempts - 1:
+                        await asyncio.sleep(attempt + 1)
+                        continue
+                    return False
+                
+                # Test component functionality
+                try:
+                    wallet_address = self.blockchain.wallet_address
+                    if not wallet_address:
+                        raise Exception("Wallet address is None")
+                    logging.info(f"✅ Wallet verified: {wallet_address}")
+                except Exception as verify_error:
+                    logging.error(f"Component verification failed: {verify_error}")
+                    if attempt < initialization_attempts - 1:
+                        await asyncio.sleep(attempt + 1)
+                        continue
+                    return False
+                
+                logging.info(f"{Fore.GREEN}✅ ALL COMPONENTS INITIALIZED SUCCESSFULLY{Style.RESET_ALL}")
+                logging.info(f"{Fore.GREEN}🚀 Bot ready for trading operations{Style.RESET_ALL}")
+                return True
+                
+            except Exception as e:
+                logging.error(f"Unexpected error in initialization (attempt {attempt + 1}): {e}")
+                if attempt < initialization_attempts - 1:
+                    logging.info(f"Retrying initialization in {attempt + 1} seconds...")
+                    await asyncio.sleep(attempt + 1)
+                else:
+                    logging.error("All initialization attempts failed")
+                    return False
+        
+        return False
 
     async def test_all_connections(self) -> bool:
         """Test all connections and APIs"""
