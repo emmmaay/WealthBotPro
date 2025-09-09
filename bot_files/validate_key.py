@@ -13,17 +13,19 @@ def validate_private_key(private_key: str) -> bool:
         if not private_key:
             return False
 
-        # Remove 0x prefix if present
-        clean_key = private_key.strip()
-        if clean_key.startswith('0x'):
-            clean_key = clean_key[2:]
+        # Clean the private key - remove whitespace and quotes
+        private_key = private_key.strip().strip('"').strip("'")
 
-        # Check if it's valid hexadecimal and correct length
-        if len(clean_key) != 64:
+        # Remove 0x prefix if present
+        if private_key.startswith('0x'):
+            private_key = private_key[2:]
+
+        # Check if it's 64 hexadecimal characters
+        if len(private_key) != 64:
             return False
 
         # Validate hexadecimal format
-        int(clean_key, 16)
+        int(private_key, 16)
         return True
 
     except (ValueError, TypeError):
