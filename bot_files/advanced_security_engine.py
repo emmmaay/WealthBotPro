@@ -240,10 +240,13 @@ class AdvancedSecurityEngine:
                         buy_tax = float(token_data.get('buy_tax', '0'))
                         sell_tax = float(token_data.get('sell_tax', '0'))
                         
-                        if buy_tax > self.security_config['max_buy_tax']:
+                        max_buy_tax = self.config['trading'].get('max_buy_tax', 10)
+                        max_sell_tax = self.config['trading'].get('max_sell_tax', 10)
+                        
+                        if buy_tax > max_buy_tax:
                             failed_reasons.append(f"High buy tax: {buy_tax}%")
                         
-                        if sell_tax > self.security_config['max_sell_tax']:
+                        if sell_tax > max_sell_tax:
                             failed_reasons.append(f"High sell tax: {sell_tax}%")
                         
                         # Check for suspicious functions

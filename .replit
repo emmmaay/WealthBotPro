@@ -23,7 +23,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python bsc_sniper_bot_2.py"
+args = "cd bot_files && python bsc_sniper_bot_2.py"
 
 [workflows.workflow.metadata]
 outputType = "console"
