@@ -72,39 +72,79 @@ class BlockchainInterface:
         return False
 
     def setup_account(self, private_key: str) -> bool:
-        """Setup account from private key"""
+        """Setup account from private key with bulletproof validation"""
         try:
             if not self.w3:
                 logging.error("Web3 not initialized")
                 return False
 
-            # Clean and validate private key
-            clean_key = private_key.strip()
-            if clean_key.startswith('0x'):
-                clean_key = clean_key[2:]
-
-            if len(clean_key) != 64:
-                logging.error(f"Private key must be 64 hexadecimal characters, got {len(clean_key)}")
+            # Enhanced private key validation with multiple safety checks
+            if not private_key:
+                logging.error("Private key is empty or None")
                 return False
 
+            # Clean the private key - remove all possible whitespace, quotes, and formatting
+            clean_key = str(private_key).strip().strip('"').strip("'").replace(' ', '').replace('\n', '').replace('\r', '')
+            
+            # Handle both 0x and non-0x prefixed keys
+            original_key = clean_key
+            if clean_key.startswith('0x') or clean_key.startswith('0X'):
+                clean_key = clean_key[2:]
+            
+            # Validate length
+            if len(clean_key) != 64:
+                logging.error(f"Private key must be exactly 64 hexadecimal characters, got {len(clean_key)}")
+                logging.error(f"Original input length: {len(original_key)}")
+                return False
+
+            # Triple validation for hexadecimal format
             try:
-                # Validate hexadecimal format
+                # Method 1: Try to convert to int with base 16
                 int(clean_key, 16)
-                # Add 0x prefix back for Account.from_key
-                formatted_key = '0x' + clean_key
-                # Create account
+                
+                # Method 2: Check each character is valid hex
+                valid_hex_chars = set('0123456789abcdefABCDEF')
+                if not all(c in valid_hex_chars for c in clean_key):
+                    raise ValueError("Invalid hexadecimal characters found")
+                
+                # Method 3: Try to create bytes object
+                bytes.fromhex(clean_key)
+                
+            except (ValueError, TypeError) as e:
+                logging.error(f"Private key contains invalid hexadecimal characters: {e}")
+                logging.error(f"Key preview: {clean_key[:8]}...{clean_key[-8:]}")
+                return False
+
+            # Format key for Account.from_key (always needs 0x prefix)
+            formatted_key = '0x' + clean_key.lower()
+            
+            try:
+                # Create account with triple error checking
                 self.account = Account.from_key(formatted_key)
                 self.wallet_address = self.account.address
-
-                logging.info(f"{Fore.GREEN}🔑 Wallet loaded: {self.wallet_address}{Style.RESET_ALL}")
-                return True
-
-            except ValueError:
-                logging.error("Private key contains invalid hexadecimal characters")
+                
+                # Validate account was created successfully
+                if not self.account or not self.wallet_address:
+                    logging.error("Account creation failed - invalid result")
+                    return False
+                
+                # Test signing capability
+                test_message = "test"
+                try:
+                    self.account.sign_message(test_message.encode())
+                    logging.info(f"{Fore.GREEN}🔑 Wallet loaded successfully: {self.wallet_address}{Style.RESET_ALL}")
+                    logging.info(f"{Fore.GREEN}✅ Signing capability verified{Style.RESET_ALL}")
+                    return True
+                except Exception as sign_error:
+                    logging.error(f"Account signing test failed: {sign_error}")
+                    return False
+                    
+            except Exception as account_error:
+                logging.error(f"Failed to create account from private key: {account_error}")
                 return False
 
         except Exception as e:
-            logging.error(f"Failed to setup account: {e}")
+            logging.error(f"Unexpected error in account setup: {e}")
             return False
 
     async def get_wallet_balance(self, token_address: Optional[str] = None) -> float:
