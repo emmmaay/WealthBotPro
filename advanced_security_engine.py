@@ -71,9 +71,16 @@ class AdvancedSecurityEngine:
             )
             
             # Process results
-            (goplus_result, honeypot_result, contract_result, liquidity_result, 
-             holder_result, ownership_result, tax_result, whale_result, 
-             dev_wallet_result, rugpull_result) = results
+            goplus_result = results[0]
+            honeypot_result = results[1]
+            contract_result = results[2]
+            liquidity_result = results[3]
+            holder_result = results[4]
+            ownership_result = results[5]
+            tax_result = results[6]
+            whale_result = results[7]
+            dev_wallet_result = results[8]
+            rugpull_result = results[9]
             
             # GoPlus Security Check
             if isinstance(goplus_result, Exception):
@@ -90,30 +97,40 @@ class AdvancedSecurityEngine:
                 failed_reasons.append(f"Honeypot check error: {str(honeypot_result)}")
                 detailed_results['honeypot'] = {'error': str(honeypot_result)}
             else:
-                honeypot_safe, honeypot_reason = honeypot_result
-                detailed_results['honeypot'] = {'safe': honeypot_safe, 'reason': honeypot_reason}
-                if not honeypot_safe:
-                    failed_reasons.append(f"Honeypot: {honeypot_reason}")
+                if len(honeypot_result) >= 2:
+                    honeypot_safe, honeypot_reason = honeypot_result[0], honeypot_result[1]
+                    detailed_results['honeypot'] = {'safe': honeypot_safe, 'reason': honeypot_reason}
+                    if not honeypot_safe:
+                        failed_reasons.append(f"Honeypot: {honeypot_reason}")
+                else:
+                    failed_reasons.append("Honeypot check failed: Invalid result")
             
             # Contract Verification
             if isinstance(contract_result, Exception):
                 logging.warning(f"Contract verification error: {str(contract_result)}")
                 detailed_results['contract'] = {'error': str(contract_result)}
             else:
-                contract_safe, contract_data = contract_result
-                detailed_results['contract'] = contract_data
-                if self.security_config['require_verified_contract'] and not contract_safe:
-                    failed_reasons.append("Contract not verified")
+                if len(contract_result) >= 2:
+                    contract_safe, contract_data = contract_result[0], contract_result[1]
+                    detailed_results['contract'] = contract_data
+                    if self.security_config['require_verified_contract'] and not contract_safe:
+                        failed_reasons.append("Contract not verified")
+                else:
+                    detailed_results['contract'] = {'error': 'Invalid contract result'}
             
             # Liquidity Analysis
             if isinstance(liquidity_result, Exception):
                 failed_reasons.append(f"Liquidity check error: {str(liquidity_result)}")
                 detailed_results['liquidity'] = {'error': str(liquidity_result)}
             else:
-                liquidity_safe, liquidity_data = liquidity_result
-                detailed_results['liquidity'] = liquidity_data
-                if not liquidity_safe:
-                    failed_reasons.append(f"Liquidity: {liquidity_data.get('reason', 'Failed check')}")
+                if len(liquidity_result) >= 2:
+                    liquidity_safe, liquidity_data = liquidity_result[0], liquidity_result[1]
+                    detailed_results['liquidity'] = liquidity_data
+                    if not liquidity_safe:
+                        reason = liquidity_data.get('reason', 'Failed check') if isinstance(liquidity_data, dict) else 'Failed check'
+                        failed_reasons.append(f"Liquidity: {reason}")
+                else:
+                    failed_reasons.append("Liquidity check failed: Invalid result")
             
             # Holder Analysis
             if isinstance(holder_result, Exception):
