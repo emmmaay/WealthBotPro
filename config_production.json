@@ -1,0 +1,109 @@
+{
+  "api_keys": {
+    "goplus_app_key": "R3QUChegrrAMyXdA7MP7",
+    "goplus_app_secret": "V8nZBkJgTbFYYz5gXKMkM2ASeNws4RyT",
+    "goplus_fallback_key": "backup_key_here",
+    "bscscan_api_key": "49KJV11NHIES9X4WSH95IIN1YUJJUZ5795",
+    "bscscan_fallback_api_key": "backup_bscscan_key",
+    "multichain_api_key": "your_multichain_api_key_here",
+    "honeypot_api_key": "backup_honeypot_key",
+    "telegram_bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+    "telegram_channel_id": "YOUR_TELEGRAM_CHANNEL_ID"
+  },
+  "trading": {
+    "buy_amount_bnb": 0.001,
+    "gas_reserve_bnb": 0.001,
+    "max_concurrent_positions": 5,
+    "max_token_age_minutes": 3,
+    "min_liquidity_usd": 500,
+    "slippage_tolerance": 15,
+    "max_buy_tax": 10,
+    "max_sell_tax": 10,
+    "min_holders": 3,
+    "auto_compound": true,
+    "compound_threshold_bnb": 0.01,
+    "gas_optimization": {
+      "max_gas_price_gwei": 20,
+      "gas_price_multiplier": 1.2,
+      "priority_fee_gwei": 2,
+      "fast_execution_mode": true
+    },
+    "advanced_profit": {
+      "compound_percentage": 80,
+      "reinvest_threshold_multiplier": 3.0,
+      "max_position_size_bnb": 0.1,
+      "scaling_factor": 1.5
+    }
+  },
+  "profit_management": {
+    "take_profit_1": {
+      "multiplier": 2,
+      "percentage": 25
+    },
+    "take_profit_2": {
+      "multiplier": 5,
+      "percentage": 30
+    },
+    "take_profit_3": {
+      "multiplier": 10,
+      "percentage": 25
+    },
+    "trailing_stop_loss_percentage": 30,
+    "max_holding_time_hours": 24
+  },
+  "security": {
+    "min_liquidity_lock_days": 30,
+    "max_ownership_percentage": 10,
+    "require_verified_contract": false,
+    "blacklisted_functions": [
+      "mint",
+      "blacklist",
+      "addToBlackList",
+      "setFee",
+      "enableTrading",
+      "pause"
+    ],
+    "min_contract_age_minutes": 0,
+    "honeypot_simulation_amount": 0.0001,
+    "enhanced_checks": {
+      "check_proxy_patterns": true,
+      "check_fee_manipulation": true,
+      "check_liquidity_burns": true,
+      "max_transaction_cooldown": 300
+    }
+  },
+  "blockchain": {
+    "rpc_endpoints": [
+      "https://bsc-dataseed1.binance.org/",
+      "https://bsc-dataseed2.binance.org/",
+      "https://bsc-dataseed3.binance.org/",
+      "https://bsc-dataseed4.binance.org/",
+      "https://rpc.ankr.com/bsc",
+      "https://bsc.nodereal.io"
+    ],
+    "pancakeswap_factory": "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73",
+    "pancakeswap_router": "0x10ED43C718714eb63d5aA57B78B54704E256024E",
+    "wbnb_address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+    "busd_address": "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56",
+    "usdt_address": "0x55d398326f99059fF775485246999027B3197955"
+  },
+  "advanced_checks": {
+    "check_rugpull_patterns": true,
+    "check_dev_wallets": true,
+    "check_whale_concentration": true,
+    "check_liquidity_locks": true,
+    "check_social_signals": false,
+    "max_dev_wallet_percentage": 5,
+    "max_whale_wallet_percentage": 3,
+    "additional_security": {
+      "check_contract_similarity": true,
+      "check_team_tokens": true,
+      "check_presale_dumps": true,
+      "check_bot_activity": true,
+      "min_natural_holders": 3,
+      "max_holder_concentration": 50,
+      "focus_on_concentration": true,
+      "allow_new_tokens": true
+    }
+  }
+}

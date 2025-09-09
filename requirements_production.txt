@@ -1,0 +1,31 @@
+# BSC Sniper Bot 2.0 - Production Dependencies
+# Core blockchain libraries - Locked versions for stability
+web3==6.15.1
+eth-account==0.11.0
+eth-utils==2.3.1
+eth-typing==3.5.2
+hexbytes==0.3.1
+
+# HTTP and async libraries - Performance optimized
+requests==2.31.0
+aiohttp==3.9.1
+websockets==12.0
+asyncio-throttle==1.0.2
+
+# Notification and UI
+python-telegram-bot==20.7
+colorama==0.4.6
+
+# Configuration and environment
+python-dotenv==1.0.0
+
+# System monitoring and performance
+psutil==5.9.6
+numpy==1.24.4
+pandas==2.0.3
+
+# Additional stability packages for production
+certifi==2023.7.22
+urllib3==2.0.4
+charset-normalizer==3.2.0
+idna==3.4

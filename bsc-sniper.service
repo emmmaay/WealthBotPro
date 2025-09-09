@@ -1,0 +1,32 @@
+[Unit]
+Description=BSC Sniper Bot 2.0 - Ultimate Money Making Machine
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/bsc_sniper_bot_2
+Environment=PATH=/home/ubuntu/bsc_sniper_bot_2/venv/bin
+Environment=PYTHONPATH=/home/ubuntu/bsc_sniper_bot_2
+ExecStart=/home/ubuntu/bsc_sniper_bot_2/venv/bin/python bsc_sniper_bot_2.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bsc-sniper
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/ubuntu/bsc_sniper_bot_2
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target
